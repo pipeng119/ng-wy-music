@@ -1,0 +1,44 @@
+import { Injectable, Inject } from '@angular/core';
+import { ServicesModule, API_CONFIG } from './services.module';
+import { Observable } from 'rxjs';
+import { Banner, HotTag, SongSheet } from './data-types/common.types';
+import { HttpClient } from '@angular/common/http';
+import { map } from 'rxjs/internal/operators';
+
+@Injectable({
+  //不再是根组件的service
+  // 如果没有用到，ng在treeshaking的时候可以进行优化
+  providedIn: ServicesModule
+})
+export class HomeService {
+  constructor(
+    private http: HttpClient,
+    @Inject(API_CONFIG) private uri: string
+  ) {}
+
+  getBanners(): Observable<Banner[]> {
+    return this.http
+      .get(`${this.uri}banner`)
+      .pipe(map((res: { banners: Banner[] }) => res.banners));
+  }
+
+  // 热门分类
+  getHotTags(): Observable<HotTag[]> {
+    return this.http
+      .get(`${this.uri}playlist/hot`)
+      .pipe(
+        map((res: { tags: HotTag[] }) =>
+          res.tags
+            .sort((x: HotTag, y: HotTag) => x.position - y.position)
+            .slice(0, 5)
+        )
+      );
+  }
+
+  // 获取推荐歌单
+  getPerosonalSheetList(): Observable<SongSheet[]> {
+    return this.http
+      .get(`${this.uri}personalized`)
+      .pipe(map((res: { result: SongSheet[] }) => res.result.slice(0, 16)));
+  }
+}
