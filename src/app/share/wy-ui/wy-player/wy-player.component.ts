@@ -17,9 +17,29 @@ import {
 import { getPlayer } from 'src/app/store/reducers/player.reducer';
 import { Song } from 'src/app/services/data-types/common.types';
 import { PlayMode } from './player-type';
-import { SetCurrentIndex } from 'src/app/store/actions/player.action';
+import {
+  SetCurrentIndex,
+  SetPlayMode,
+  SetPlayList
+} from 'src/app/store/actions/player.action';
 import { Subscription, fromEvent } from 'rxjs';
 import { DOCUMENT } from '@angular/common';
+import { shuffle } from 'src/app/utils/array';
+
+const modeTypes: PlayMode[] = [
+  {
+    type: 'loop',
+    label: '循环'
+  },
+  {
+    type: 'random',
+    label: '随机'
+  },
+  {
+    type: 'singleLoop',
+    label: '单曲循环'
+  }
+];
 
 @Component({
   selector: 'app-wy-player',
@@ -57,6 +77,12 @@ export class WyPlayerComponent implements OnInit {
   selfClick = false;
 
   private winClick: Subscription;
+
+  // 当前模式
+  currentMode: PlayMode;
+
+  // 点击切换模式的次数
+  modeCount = 0;
 
   @ViewChild('audio', { static: true })
   private audio: ElementRef;
@@ -118,13 +144,35 @@ export class WyPlayerComponent implements OnInit {
   }
 
   private watchPlayMode(mode: PlayMode) {
-    console.log('mode: ', mode);
+    this.currentMode = mode;
+    if (this.songList) {
+      let list = this.songList.slice();
+      if (mode.type === 'random') {
+        list = shuffle(this.songList);
+        console.log(list);
+        this.unpdateCurrentIndex(list, this.currentSong);
+        this.store$.dispatch(SetPlayList({ playList: list }));
+      }
+      console.log(this.playList.length);
+    }
   }
   private watchCurrentSong(song: Song) {
     if (song) {
       this.currentSong = song;
       this.duration = song.dt / 1000;
     }
+  }
+
+  // 更新当前播放歌曲的索引
+  private unpdateCurrentIndex(list: Song[], song: Song) {
+    const newIndex = list.findIndex(({ id }) => (id = song.id));
+    this.store$.dispatch(SetCurrentIndex({ currentIndex: newIndex }));
+  }
+
+  // 改变播放模式
+  changeMode() {
+    const temp = modeTypes[++this.modeCount % 3];
+    this.store$.dispatch(SetPlayMode({ playMode: temp }));
   }
 
   // 控制歌曲播放进度
