@@ -1,4 +1,10 @@
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  ViewChild,
+  ElementRef,
+  Inject
+} from '@angular/core';
 import { Store, select } from '@ngrx/store';
 import { AppStoreModule } from 'src/app/store';
 import {
@@ -12,6 +18,8 @@ import { getPlayer } from 'src/app/store/reducers/player.reducer';
 import { Song } from 'src/app/services/data-types/common.types';
 import { PlayMode } from './player-type';
 import { SetCurrentIndex } from 'src/app/store/actions/player.action';
+import { Subscription, fromEvent } from 'rxjs';
+import { DOCUMENT } from '@angular/common';
 
 @Component({
   selector: 'app-wy-player',
@@ -39,11 +47,25 @@ export class WyPlayerComponent implements OnInit {
   // 是否可以播放
   songReady = false;
 
+  // 音量
+  volume = 60;
+
+  // 是否显示音量面板
+  showVolumnPanel: boolean = false;
+
+  // 是否点击的音量面板本身
+  selfClick = false;
+
+  private winClick: Subscription;
+
   @ViewChild('audio', { static: true })
   private audio: ElementRef;
 
   private audioEl: HTMLAudioElement;
-  constructor(private store$: Store<AppStoreModule>) {
+  constructor(
+    private store$: Store<AppStoreModule>,
+    @Inject(DOCUMENT) private doc: Document
+  ) {
     const appStore$ = this.store$.pipe(select(getPlayer));
     // appStore$.pipe(select(getSongList)).subscribe(list => {
     //   console.log('songlist: ', list);
@@ -106,9 +128,47 @@ export class WyPlayerComponent implements OnInit {
   }
 
   // 控制歌曲播放进度
-  onPercentChange(per) {
-    console.log('per: ', per);
-    this.audioEl.currentTime = this.duration * (per / 100);
+  onPercentChange(per: number) {
+    if (this.duration) this.audioEl.currentTime = this.duration * (per / 100);
+  }
+
+  // 控制音量
+  onVolumeChange(per: number) {
+    this.audioEl.volume = per / 100;
+  }
+
+  // 控制音量面板
+  toggleValPanel(evt: MouseEvent) {
+    evt.stopPropagation();
+    this.togglePanel();
+  }
+  // 控制音量面板
+  togglePanel() {
+    this.showVolumnPanel = !this.showVolumnPanel;
+    if (this.showVolumnPanel) {
+      this.bindDocumentClickListener();
+    } else {
+      this.unbindDocumentClickListener();
+    }
+  }
+
+  private bindDocumentClickListener() {
+    if (!this.winClick) {
+      this.winClick = fromEvent(this.doc, 'click').subscribe(() => {
+        if (!this.selfClick) {
+          // 说明点击了播放器以外的部分
+          this.showVolumnPanel = false;
+          this.unbindDocumentClickListener();
+        }
+        this.selfClick = false;
+      });
+    }
+  }
+  private unbindDocumentClickListener() {
+    if (this.winClick) {
+      this.winClick.unsubscribe();
+      this.winClick = null;
+    }
   }
 
   // 播放/暂停
